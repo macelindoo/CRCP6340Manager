@@ -1,7 +1,7 @@
 {
   "name": "crcp6340manager",
   "version": "1.0.0",
-  "description": "",
+  "description": "A tool to prep generative art to become NFTs",
   "homepage": "https://github.com/macelindoo/CRCP6340Manager#readme",
   "bugs": {
     "url": "https://github.com/macelindoo/CRCP6340Manager/issues"
@@ -12,8 +12,8 @@
   },
   "license": "MIT",
   "author": "Ilea Shutler",
-  "type": "commonjs",
-  "main": "index.js",
+  "type": "module",
+  "main": "app.js",
  "dependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@openzeppelin/contracts": "^5.4.0",
