@@ -2,13 +2,16 @@ import fs from "fs-extra";
 import { animStrings } from "./animation-strings.js";
 import { projectInfo } from "../build/1-project-bundle/projectMeta.js";
 import nodeHtmlToImage from "node-html-to-image";
+import path from "path";
+import FormData from "form-data";
+import fetch from "node-fetch"; //If using Node.js v18+, you can use global fetch
 import dotenv from "dotenv";
 dotenv.config();
-import pinataSDK from "@pinata/sdk";
-const pinata = new pinataSDK(
-  process.env.pinata_api_key,
-  process.env.pinata_secret_api_key
-);
+// import pinataSDK from "@pinata/sdk";
+// const pinata = new pinataSDK(
+//   process.env.pinata_api_key,
+//   process.env.pinata_secret_api_key
+// );
 import pkg from "hardhat";
 const { ethers, run, network } = pkg;
 
@@ -119,12 +122,81 @@ export async function capturePreviewImages() {
     let imageFileName = `./build/3-anim-images/${tokenId}.png`;
     const markup = fs.readFileSync(animFileName).toString();
     await nodeHtmlToImage({
+      //waitUntil: "domcontentloaded",
+      //selector: "canvas",
+      beforeScreenshot: async (page) => {
+    page.waitForSelector("canvas");
+  },
       output: imageFileName,
       html: markup,
-      puppeteerArgs: { defaultViewport: { width: 700, height: 700 } },
+      puppeteerArgs: { defaultViewport: { width: 700, height: 700 }, headless: false },
     }).then(() => {
       console.log(`Preview image ${i + 1} was created successfully!`);
     });
+  }
+}
+
+const timeout = new Promise((resolve, reject) => {
+    setTimeout(() => { resolve(5); }, 5_000);
+});
+
+////**********************ADDING SMITTY'S PINNING LOGIC HERE***********************/
+export async function pinToSmittys(url, projectname) {
+  const buffer = fs.readFileSync(url);
+  const formData = new FormData();
+  formData.append("file", buffer, path.basename(url));
+
+  const bodyBuffer = formData.getBuffer();
+  const contentLength = Buffer.byteLength(bodyBuffer);
+
+  const headers = {
+    "x-api-username": process.env.SMITTYS_USERNAME,
+    "x-api-key": process.env.SMITTYS_API_KEY,
+    ...formData.getHeaders(),
+    "Content-Length": contentLength,
+  };
+
+  try {
+    const response = await fetch(
+      `https://pin.dgs-creative.com/api/pin?projectname=${encodeURIComponent(projectname)}`,
+      {
+        method: "POST",
+        headers: headers,
+        body: bodyBuffer,
+      }
+    );
+    const data = await response.json();
+    if (response.ok) {
+      console.log("File pinned successfully:", data.cid);
+      return { IpfsHash: data.cid };
+    } else {
+      throw new Error(data.message || "Failed to pin file");
+    }
+  } catch (err) {
+    console.error("Error pinning file:", err);
+    throw err;
+  }
+}
+////**********************ADDING SMITTY'S UNPINNING LOGIC***********************/
+export async function unpinFromSmittys(cidArray) {
+  const body = { cids: cidArray };
+  const headers = {
+    "Content-Type": "application/json",
+    "x-api-username": process.env.SMITTYS_USERNAME,
+    "x-api-key": process.env.SMITTYS_API_KEY,
+  };
+  try {
+    const response = await fetch(`https://pin.dgs-creative.com/api/unpin`, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    const data = await response.json();
+    console.log("Unpin response from IPFS:", data);
+    return data;
+  } catch (err) {
+    console.error("Error unpinning pins:", err);
+    throw err;
   }
 }
 
@@ -135,56 +207,89 @@ export async function pinImagesAndAnims() {
   for (let i = 0; i < projectInfo.numberOfEditions; i++) {
     let tokenId = i + 1; //getTokenId(i);
     let animFileName = `./build/2-anim-files/${tokenId}.html`;
-    let animOptions = {
-      pinataMetadata: {
-        name: projectInfo.projectName,
-        keyvalues: {
-          tokenId: tokenId,
-          item: "Animation html file",
-        },
-      },
-      pinataOptions: {
-        cidVersion: 1,
-      },
-    };
-    await pinata.pinFromFS(animFileName, animOptions).then((res) => {
-      animString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`;
-      animIPFS.push(
-        `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`
-      );
-      if (i < projectInfo.numberOfEditions - 1) {
-        animString += `,`;
-      } else {
-        animString += ``;
-      }
-    });
-    let imageFileName = `./build/3-anim-images/${tokenId}.png`;
-    let imageOptions = {
-      pinataMetadata: {
-        name: projectInfo.projectName,
-        keyvalues: {
-          tokenId: tokenId,
-          item: "Token preview png file",
-        },
-      },
-      pinataOptions: {
-        cidVersion: 1,
-      },
-    };
-    await pinata.pinFromFS(imageFileName, imageOptions).then((res) => {
-      imageString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`;
-      imageIPFS.push(
-        `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`
-      );
-      if (i == 0) {
-        projectImageIPFS = `https://ipfs.io/ipfs/${res.IpfsHash}`;
-      }
-      if (i < projectInfo.numberOfEditions - 1) {
-        imageString += `,`;
-      } else {
-        imageString += ``;
-      }
-    });
+    //// let animOptions = {
+    ////   pinataMetadata: {
+    ////     name: projectInfo.projectName,
+    ////     keyvalues: {
+    ////       tokenId: tokenId,
+    ////       item: "Animation html file",
+    ////     },
+    ///   },
+    ////   pinataOptions: {
+    ////     cidVersion: 1,
+    ////   },
+    //// };
+
+////***********REPLACING OLD PINATA CODE***********
+    //// await pinata.pinFromFS(animFileName, animOptions).then((res) => {
+    ////   animString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`;
+    ////   animIPFS.push(
+    ////     `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`
+    ////   );
+    ////   if (i < projectInfo.numberOfEditions - 1) {
+    ////     animString += `,`;
+    ////   } else {
+    ////     animString += ``;
+    ////   }
+    //// });
+
+////*************NEW SMITTY'S CODE*************
+const animResult = await pinToSmittys(animFileName, projectInfo.projectName);
+animString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${animResult.IpfsHash}"}`;
+animIPFS.push(
+  `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${animResult.IpfsHash}"}`
+);
+if (i < projectInfo.numberOfEditions - 1) {
+  animString += `,`;
+} else {
+  animString += ``;
+}
+
+    //// let imageFileName = `./build/3-anim-images/${tokenId}.png`;
+    //// let imageOptions = {
+    ////   pinataMetadata: {
+    ////     name: projectInfo.projectName,
+    ////     keyvalues: {
+    ////       tokenId: tokenId,
+    ////       item: "Token preview png file",
+    ////     },
+    ////   },
+    ////   pinataOptions: {
+    ////     cidVersion: 1,
+    ////   },
+    //// };
+
+////***********REPLACING OLD PINATA CODE***********
+    //// await pinata.pinFromFS(imageFileName, imageOptions).then((res) => {
+    ////   imageString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`;
+    ////   imageIPFS.push(
+    ////     `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${res.IpfsHash}"}`
+    ////   );
+    ////   if (i == 0) {
+    ////     projectImageIPFS = `https://ipfs.io/ipfs/${res.IpfsHash}`;
+    ////   }
+    ////   if (i < projectInfo.numberOfEditions - 1) {
+    ////     imageString += `,`;
+    ////   } else {
+    ////     imageString += ``;
+    ////   }
+    //// });
+
+////*************NEW SMITTY'S CODE*************
+const imageResult = await pinToSmittys(imageFileName, projectInfo.projectName);
+imageString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${imageResult.IpfsHash}"}`;
+imageIPFS.push(
+  `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${imageResult.IpfsHash}"}`
+);
+if (i == 0) {
+  projectImageIPFS = `https://ipfs.io/ipfs/${imageResult.IpfsHash}`;
+}
+if (i < projectInfo.numberOfEditions - 1) {
+  imageString += `,`;
+} else {
+  imageString += ``;
+}
+
   }
   animString += `]}`;
   imageString += `]}`;
@@ -220,31 +325,48 @@ export async function buildFinalMetaAndPinToIPFS() {
   for (let i = 0; i < projectInfo.numberOfEditions; i++) {
     let tokenId = i + 1; //getTokenId(i);
     let finalMetaFileName = `./build/4-completed-metadata/${tokenId}.json`;
-    let finalMetaOptions = {
-      pinataMetadata: {
-        name: projectInfo.projectName,
-        keyvalues: {
-          tokenId: tokenId,
-          item: "Token metadata file",
-        },
-      },
-      pinataOptions: {
-        cidVersion: 1,
-      },
-    };
-    await pinata.pinFromFS(finalMetaFileName, finalMetaOptions).then((res) => {
-      finalMetaString += `{"token":"${tokenId}","ipfs":"https://ipfs.io/ipfs/${res.IpfsHash}"}`;
-      finalMetaIPFS.push(
-        `{"token": "${tokenId}", "ipfs":  "https://ipfs.io/ipfs/${res.IpfsHash}"}`
-      );
-      if (i < projectInfo.numberOfEditions - 1) {
-        finalMetaString += `,`;
-      }
-    });
-  }
-  finalMetaString += `]}`;
-  console.log(finalMetaString);
-  finalProjectJSON += `${finalMetaString},`;
+    //// let finalMetaOptions = {
+    ////   pinataMetadata: {
+    ////     name: projectInfo.projectName,
+    ////     keyvalues: {
+    ////       tokenId: tokenId,
+    ////       item: "Token metadata file",
+    ////     },
+    ////   },
+    ////   pinataOptions: {
+    ////     cidVersion: 1,
+    ////   },
+    //// };
+
+////***********REPLACING OLD PINATA CODE***********
+    //// await pinata.pinFromFS(finalMetaFileName, finalMetaOptions).then((res) => {
+    ////   finalMetaString += `{"token":"${tokenId}","ipfs":"https://ipfs.io/ipfs/${res.IpfsHash}"}`;
+    ////   finalMetaIPFS.push(
+    ////     `{"token": "${tokenId}", "ipfs":  "https://ipfs.io/ipfs/${res.IpfsHash}"}`
+    ////   );
+    ////   if (i < projectInfo.numberOfEditions - 1) {
+    ////     finalMetaString += `,`;
+    ////   }
+    //// });
+    ////   }
+    ////   finalMetaString += `]}`;
+    ////   console.log(finalMetaString);
+    ////   finalProjectJSON += `${finalMetaString},`;
+    //// }
+
+////*************NEW SMITTY'S CODE*************
+const result = await pinToSmittys(finalMetaFileName, projectInfo.projectName);
+finalMetaString += `{"token":"${tokenId}","ipfs":"https://ipfs.io/ipfs/${result.IpfsHash}"}`;
+finalMetaIPFS.push(
+  `{"token": "${tokenId}", "ipfs":  "https://ipfs.io/ipfs/${result.IpfsHash}"}`
+);
+if (i < projectInfo.numberOfEditions - 1) {
+  finalMetaString += `,`;
+}
+}
+finalMetaString += `]}`;
+console.log(finalMetaString);
+finalProjectJSON += `${finalMetaString},`;
 }
 
 export async function buildProjectMetaAndPinToIPFS() {
@@ -268,23 +390,29 @@ export async function buildProjectMetaAndPinToIPFS() {
   } catch (err) {
     console.error(err);
   }
-  let projectMetaOptions = {
-    pinataMetadata: {
-      name: projectInfo.projectName,
-      keyvalues: {
-        item: "Collection metadata file",
-      },
-    },
-    pinataOptions: {
-      cidVersion: 1,
-    },
-  };
-  await pinata
-    .pinFromFS(projectMetaFileName, projectMetaOptions)
-    .then((res) => {
-      projectMetaString += `"https://ipfs.io/ipfs/${res.IpfsHash}"}`;
-      projectMetaIPFS = `"https://ipfs.io/ipfs/${res.IpfsHash}"}`;
-    });
+////   let projectMetaOptions = {
+////     pinataMetadata: {
+////       name: projectInfo.projectName,
+////       keyvalues: {
+////         item: "Collection metadata file",
+////       },
+////     },
+////     pinataOptions: {
+////       cidVersion: 1,
+////     },
+////   };
+////***********REPLACING OLD PINATA CODE***********
+////   await pinata
+////     .pinFromFS(projectMetaFileName, projectMetaOptions)
+////     .then((res) => {
+////       projectMetaString += `"https://ipfs.io/ipfs/${res.IpfsHash}"}`;
+////       projectMetaIPFS = `"https://ipfs.io/ipfs/${res.IpfsHash}"}`;
+////     });
+////***********NEW SMITTY'S CODE***********
+const result = await pinToSmittys(projectMetaFileName, projectInfo.projectName);
+projectMetaString += `"https://ipfs.io/ipfs/${result.IpfsHash}"}`;
+projectMetaIPFS = `"https://ipfs.io/ipfs/${result.IpfsHash}"}`;
+
   finalProjectJSON += `${projectMetaString}]}`;
   let finalProjectFileName = `./build/5-final-project-data/finalProjectData.json`;
   try {
