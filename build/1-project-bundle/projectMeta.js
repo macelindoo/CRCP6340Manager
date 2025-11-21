@@ -8,7 +8,7 @@ export const projectInfo = {
   price: 0.01,
   royaltiesPercent: 5.0,
   titleForViewport: "An Icosahedron in THREEjs",
-  projectWebUrl: "https://mact6340-app-nzv3s.ondigitalocean.app/projects",
+  projectWebUrl: "https://crcp6340-nft-app-gwglx.ondigitalocean.app/projects",
   openSeaCollectionName: "Icosahedron Geometry",
   openSeaCollectionDescription:
     "An Icosahedron interactive shape rendered with THREEjs.",
