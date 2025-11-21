@@ -273,6 +273,7 @@ if (i < projectInfo.numberOfEditions - 1) {
     //// });
 
 ////*************NEW SMITTY'S CODE*************
+let imageFileName = `./build/3-anim-images/${tokenId}.png`;
 const imageResult = await pinToSmittys(imageFileName, projectInfo.projectName);
 imageString += `{"token": "${tokenId}", "ipfs": "https://ipfs.io/ipfs/${imageResult.IpfsHash}"}`;
 imageIPFS.push(
