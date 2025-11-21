@@ -30,11 +30,11 @@ export async function completeBuildAndDeploySequence() {
   let seq1 = [
     buildAnimationFiles,
     capturePreviewImages,
-    // pinImagesAndAnims,
-    // buildFinalMetaAndPinToIPFS,
-    // buildProjectMetaAndPinToIPFS,
-    // deployContract,
-    // buildScriptsForDatabase,
+    pinImagesAndAnims,
+    buildFinalMetaAndPinToIPFS,
+    buildProjectMetaAndPinToIPFS,
+    deployContract,
+    buildScriptsForDatabase,
     close,
   ];
   for (const fn of seq1) await fn();
@@ -122,11 +122,8 @@ export async function capturePreviewImages() {
     let imageFileName = `./build/3-anim-images/${tokenId}.png`;
     const markup = fs.readFileSync(animFileName).toString();
     await nodeHtmlToImage({
-      //waitUntil: "domcontentloaded",
+      waitUntil: "domcontentloaded",
       //selector: "canvas",
-      beforeScreenshot: async (page) => {
-    page.waitForSelector("canvas");
-  },
       output: imageFileName,
       html: markup,
       puppeteerArgs: { defaultViewport: { width: 700, height: 700 }, headless: false },
@@ -446,18 +443,18 @@ async function deploy() {
     royaltyArtist: projectInfo.openSeaCollectionFee_recipient,
     royaltyBasis: projectInfo.openSeaCollectionSeller_fee_basis_points,
   };
-  const DGSCreativeNFTContractFactory = await ethers.getContractFactory(
-    "DGSCreativeNFTContract"
+  const IASCreativeNFTContractFactory = await ethers.getContractFactory(
+    "IASCreativeNFTContract"
   );
   // deploy
-  const DGSCreativeNFTContract = await DGSCreativeNFTContractFactory.deploy(
+  const IASCreativeNFTContract = await IASCreativeNFTContractFactory.deploy(
     args.mint_price,
     args.max_tokens,
     args.base_uri,
     args.royaltyArtist,
     args.royaltyBasis
   );
-  await DGSCreativeNFTContract.waitForDeployment(
+  await IASCreativeNFTContract.waitForDeployment(
     args.mint_price,
     args.max_tokens,
     args.base_uri,
@@ -465,8 +462,8 @@ async function deploy() {
     args.royaltyBasis
   );
   console.log("Waiting for block verifications...");
-  await DGSCreativeNFTContract.deploymentTransaction().wait(30);
-  contractAddress = await DGSCreativeNFTContract.getAddress();
+  await IASCreativeNFTContract.deploymentTransaction().wait(30);
+  contractAddress = await IASCreativeNFTContract.getAddress();
   console.log(`Contract deployed to ${contractAddress}`);
   // verify
   if (

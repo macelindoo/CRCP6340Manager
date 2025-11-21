@@ -21,7 +21,6 @@
     "express": "^5.1.0",
     "form-data": "^4.0.5",
     "fs-extra": "^11.3.0",
-    "hardhat": "^2.26.0",
     "node-fetch": "^3.3.2",
     "node-html-to-image": "^5.0.0"
   },
