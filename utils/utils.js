@@ -33,7 +33,7 @@ export async function completeBuildAndDeploySequence() {
     pinImagesAndAnims,
     buildFinalMetaAndPinToIPFS,
     buildProjectMetaAndPinToIPFS,
-    deployContract,
+    // deployContract,
     buildScriptsForDatabase,
     close,
   ];
@@ -152,9 +152,10 @@ export async function pinToSmittys(url, projectname) {
     ...formData.getHeaders(),
     "Content-Length": contentLength,
   };
+  let response = undefined;
 
   try {
-    const response = await fetch(
+    response = await fetch(
       `https://pin.dgs-creative.com/api/pin?projectname=${encodeURIComponent(projectname)}`,
       {
         method: "POST",
@@ -164,12 +165,14 @@ export async function pinToSmittys(url, projectname) {
     );
     const data = await response.json();
     if (response.ok) {
-      console.log("File pinned successfully:", data.cid);
-      return { IpfsHash: data.cid };
+      console.log(data);
+      console.log("File pinned successfully:", data.IpfsHash);
+      return { IpfsHash: data.IpfsHash };
     } else {
       throw new Error(data.message || "Failed to pin file");
     }
   } catch (err) {
+    console.log(response);
     console.error("Error pinning file:", err);
     throw err;
   }
