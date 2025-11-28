@@ -3,10 +3,14 @@ import { animStrings } from "./animation-strings.js";
 import { projectInfo } from "../build/1-project-bundle/projectMeta.js";
 //import nodeHtmlToImage from "node-html-to-image";
 import path from "path";
-import FormData from "form-data";
-import fetch from "node-fetch"; //If using Node.js v18+, you can use global fetch
 import dotenv from "dotenv";
 dotenv.config();
+
+import { PinataSDK } from 'pinata';
+const pinata = new PinataSDK({
+  pinataGateway: process.env.PINATA_GATEWAY,
+  pinataJwt: process.env.PINATA_JWT
+});
 
 import pkg from "hardhat";
 const { ethers, run, network } = pkg;
@@ -214,25 +218,38 @@ export async function buildAnimationFiles() {
 ////*************NEW PINNING LOGIC*************
 export async function pinFileToIPFS(filePath, metadata = {}) {
   console.log(`Pinning ${filePath} to Pinata...`);
-  const formData = new FormData();
-  formData.append('file', fs.createReadStream(filePath));
-  formData.append('pinataMetadata', JSON.stringify({
-    name: metadata.name || path.basename(filePath),
-    keyvalues: metadata.keyvalues || {}
-  }));
-  const cleanJWT = process.env.PINATA_JWT?.trim();
-  const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${cleanJWT}`,
-      ...formData.getHeaders()
-    },
-    body: formData
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error?.details || 'Failed to pin');
-  console.log(`Successfully pinned: ${result.IpfsHash}`);
-  return { IpfsHash: result.IpfsHash };
+  try {
+    const fileName = path.basename(filePath);
+    let file;
+
+    if (fileName.endsWith('.html')) {
+      console.log('Creating File with name:', fileName);
+      const html = fs.readFileSync(filePath, "utf8");
+      //Wrap html string in an array for the File constructor
+      file = new File([html], fileName, { type: "text/html" });
+    } else if (fileName.endsWith('.png')) {
+      const imageBuffer = fs.readFileSync(filePath);
+      //Wrap buffer in an array for the File constructor
+      file = new File([imageBuffer], fileName, { type: "image/png" });
+    } else if (fileName.endsWith('.json')) {
+      const json = fs.readFileSync(filePath, "utf8");
+      file = new File([json], fileName, { type: "application/json" });
+    } else {
+      throw new Error("Unsupported file type for pinning.");
+    }
+
+    const groupId = process.env.PINATA_GROUP_ID;
+    if (!groupId) throw new Error('Missing PINATA_GROUP_ID');
+
+    //Pin the file
+    const upload = await pinata.upload.public.file(file).group(groupId);
+
+    console.log(`Successfully pinned: ${upload.cid}`);
+    return { IpfsHash: upload.cid };
+  } catch (error) {
+    console.error(`Error pinning ${filePath}:`, error);
+    throw error;
+  }
 }
 
 export async function pinImagesAndAnims() {

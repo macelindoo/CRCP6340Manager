@@ -1,20 +1,20 @@
 export const projectInfo = {
-  projectName: "Icosahedron Geometry",
+  projectName: "Space Mountain",
   artistsPayoutWallet: "0x94848CEe6eA7dBcc5322f0B13015A42ec63bC3BB",
   numberOfEditions: 13,
-  releaseDate: "2024-02-01 21:00:00",
+  releaseDate: "2025-12-01 21:00:00",
   websiteProjectDescription:
-    "An Icosahedron that rotates around an axis.  The background color and color of the knot are determined by each unique hash.",
+    "A mountain range in space, rendered with THREEjs.  The colors of the mountain and background are determined by each token's unique hash.",
   price: 0.01,
   royaltiesPercent: 5.0,
-  titleForViewport: "An Icosahedron in THREEjs",
+  titleForViewport: "A Mountain Range in THREEjs",
   projectWebUrl: "https://crcp6340-nft-app-gwglx.ondigitalocean.app/projects",
-  openSeaCollectionName: "Icosahedron Geometry",
+  openSeaCollectionName: "Space Mountain",
   openSeaCollectionDescription:
-    "An Icosahedron interactive shape rendered with THREEjs.",
+    "A mountain range in space, rendered with THREEjs.",
   openSeaCollectionImage: "",
   openSeaCollectionSeller_fee_basis_points: 500,
   openSeaCollectionFee_recipient: "0x94848CEe6eA7dBcc5322f0B13015A42ec63bC3BB",
   tokenDescriptionText:
-    "One of the gorgeous interactive shapes from the Icosahedron collection.",
+    "A mountain range in space from the Space Mountain collection.",
 };
